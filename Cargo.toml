@@ -5,3 +5,5 @@ edition = "2021"
 
 [dependencies]
 minifb = "0.28"
+anyhow = "1.0.97"
+clap = { version = "4.5.21", features = ["derive"] }
