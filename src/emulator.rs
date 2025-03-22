@@ -12,58 +12,38 @@ const LOOP_RATE: u64 = 700;
 const SLEEP_DURATION: Duration = time::Duration::from_nanos(1_000_000_000 / LOOP_RATE);
 
 type Memory = [u8; MEMORY_SIZE];
+type Stack = Vec<u16>;
 type Instruction = u16;
 
-pub fn run(rom: String, input_rx: Receiver<Key>, output_tx: Sender<window::DisplayBuffer>) {
-    let mut memory: Memory = [0; MEMORY_SIZE];
-    let mut pc: usize = PROGRAM_START;
-    let mut index_register: u16 = 0x0;
-    let mut stack: Vec<u16>;
-    let mut delay_timer: u8;
-    let mut sound_timer: u8;
-    let mut registers: [u8; 16] = [0x0; 16];
-    
+pub fn run(rom: String, input_rx: Receiver<Key>, output_tx: Sender<window::DisplayBuffer>) {    
     let file: File = File::open(rom).expect("Rom could not be opened.");
-    load_fonts(&mut memory);
-    load_program(&mut memory, file);
-
-    println!("{:02X?}", memory);
-    let mut display_buffer =[0 as u32; window::WIDTH * window::HEIGHT];
-
+    
+    let mut emulator = Emulator::init(file);
     loop {                
-        let instruction = fetch(&mut pc, &memory);
+        let instruction = emulator.fetch();
         let op_code = (instruction >> 12) & 0xF;
-        let register_x = ((instruction >> 8) & 0xF) as u8;
-        let register_y = ((instruction >> 4) & 0xF) as u8;
+        let vx = ((instruction >> 8) & 0xF) as u8;
+        let vy = ((instruction >> 4) & 0xF) as u8;
         let address = instruction & 0xFFF;
         let value = (instruction & 0xFF) as u8;
-        let nibble = (instruction & 0xF) as u8;
+        let short_value = (instruction & 0xF) as u8;
 
         match op_code {
-            0x0 => { clear_screen(&mut display_buffer, &output_tx) },
+            0x0 => { emulator.clear_screen(&output_tx) },
             0x1 => {
-                println!("inst: {:04X}, jump, pc before {:02X}", instruction, &pc);
-                jump(address, &mut pc);
-                println!("pc after {:02X}", &pc);
+                emulator.jump(address);
             },
             0x6 => {
-                println!("inst: {:04X}, set registers before {:?}", instruction, &registers);
-                set_register(&mut registers, register_x, value);
-                println!("registers after {:?}", &registers);
+                emulator.set_register(vx, value);
             },
             0x7 => {
-                println!("inst: {:04X}, add registers before {:?}", instruction, &registers);
-                add_to_register(&mut registers, register_x, value);
-                println!("registers after {:?}", &registers);
+                emulator.add_to_register(vx, value);
             },
             0xA => {
-                println!("inst: {:04X}, set index before {:?}", instruction, &index_register);
-                set_index(&mut index_register, address);
-                println!("index after {:?}", &index_register);
+                emulator.set_index(address);
             },
             0xD => {
-                println!("inst: {:04X}, display", instruction);
-                display(&mut registers, register_x, register_y, nibble, &mut display_buffer, &index_register, &memory, &output_tx);
+                emulator.display(vx, vy, short_value, &output_tx);
             },
             _ => {}
         }
@@ -72,69 +52,96 @@ pub fn run(rom: String, input_rx: Receiver<Key>, output_tx: Sender<window::Displ
     }
 }
 
-fn fetch(pc: &mut usize, memory: &Memory) -> Instruction {
-    let inst = u16::from_be_bytes([memory[*pc], memory[*pc + 1]]);
-    *pc += 0x02;
-    inst
+struct Emulator {
+    memory: Memory,
+    pc: usize,
+    index_register: u16,
+    stack: Vec<u16>,
+    delay_timer: u8,
+    sound_timer: u8,
+    registers: [u8; 0x10],
+    display_buffer: [u32; window::WIDTH * window::HEIGHT],
 }
 
-fn clear_screen(buffer: &mut [u32; 2048], output_tx: &Sender<window::DisplayBuffer>) {
-    *buffer = [0 as u32; window::WIDTH * window::HEIGHT];
-    output_tx.send(buffer.clone()).unwrap();
-}
+impl Emulator {
+    fn init(rom: impl std::io::Read) -> Self {
+        let mut memory = [0; MEMORY_SIZE];
+        
+        load_fonts(&mut memory);
+        load_program(&mut memory, rom);
 
-fn jump(address: u16, pc: &mut usize) {
-    *pc = address as usize;
-}
-
-fn set_register(registers: &mut [u8; 16], register: u8, value: u8) {
-    registers[register as usize] = value
-}
-
-fn add_to_register(registers: &mut [u8; 16], register: u8, value: u8) {
-    registers[register as usize] += value
-}
-
-fn set_index(index_register: &mut u16, address: u16) {
-    *index_register = address;
-}
-
-fn display(registers: &mut [u8; 16], vx: u8, vy: u8, size: u8, buffer: &mut [u32; 2048], index_register: &u16, memory: &Memory, output_tx: &Sender<window::DisplayBuffer>) {
-    let x = registers[vx as usize] & (window::WIDTH - 1) as u8;
-    let y = registers[vy as usize] & (window::HEIGHT - 1) as u8;
-    println!("coords {}, {}", x, y);
-
-    registers[0xF] = 0;
-    for i in 0..size {
-        if y + i >= window::HEIGHT as u8 {
-            break;
-        }
-
-        let sprite_data = memory[*index_register as usize + i as usize];
-        println!("sprite_data {:08b}", sprite_data);
-        for xi in 0..8 {
-            if x + xi >= window::WIDTH as u8 {
-                break;
-            }
-            
-            let current_bit = sprite_data >> (7 - xi) & 0x1;
-            println!("current_bit {}", current_bit);
-            if current_bit == 0x0 {
-                continue;
-            }
-            
-            let current_pixel = (y+i) as usize * window::HEIGHT + (x+xi) as usize;
-            println!("current_pixel {}", current_pixel);
-
-            if buffer[current_pixel] == 0xFFFFFF {
-                registers[0xF] = 0x1;
-            }
-            
-            buffer[current_pixel] ^= 0xFFFFFF;
+        Self {
+            memory: memory, 
+            pc: PROGRAM_START, 
+            index_register: 0x0, 
+            stack: Stack::new(), 
+            delay_timer: 0x0, 
+            sound_timer: 0x0, 
+            registers: [0x0; 0x10],
+            display_buffer: [0 as u32; window::WIDTH * window::HEIGHT],
         }
     }
+
+    fn fetch(&mut self) -> Instruction {
+        let inst = u16::from_be_bytes([self.memory[self.pc], self.memory[self.pc + 1]]);
+        self.pc += 2;
+        inst
+    }
+
+    fn clear_screen(&mut self, output_tx: &Sender<window::DisplayBuffer>) {
+        self.display_buffer = [0 as u32; window::WIDTH * window::HEIGHT];
+        output_tx.send(self.display_buffer.clone()).unwrap();
+    }
     
-    output_tx.send(buffer.clone()).unwrap();
+    fn jump(&mut self, address: u16) {
+        self.pc = address as usize;
+    }
+    
+    fn set_register(&mut self, register: u8, value: u8) {
+        self.registers[register as usize] = value
+    }
+    
+    fn add_to_register(&mut self, register: u8, value: u8) {
+        self.registers[register as usize] += value
+    }
+    
+    fn set_index(&mut self, address: u16) {
+        self.index_register = address;
+    }
+    
+    fn display(&mut self, vx: u8, vy: u8, num_of_rows: u8, output_tx: &Sender<window::DisplayBuffer>) {
+        let x = self.registers[vx as usize] & (window::WIDTH - 1) as u8;
+        let y = self.registers[vy as usize] & (window::HEIGHT - 1) as u8;
+    
+        self.registers[0xF] = 0;
+        for y_offset in 0..num_of_rows {
+            if y + y_offset >= window::HEIGHT as u8 {
+                break;
+            }
+    
+            let sprite_row_slice = self.memory[self.index_register as usize + y_offset as usize];
+            for x_offset in 0..8 {
+                if x + x_offset >= window::WIDTH as u8 {
+                    break;
+                }
+                
+                let current_sprite_bit = sprite_row_slice >> (7 - x_offset) & 0x1;
+                if current_sprite_bit == 0x0 {
+                    continue;
+                }
+                
+                let current_pixel = (y+y_offset) as usize * window::HEIGHT + (x+x_offset) as usize;
+    
+                if self.display_buffer[current_pixel] == 0xFFFFFF {
+                    self.registers[0xF] = 0x1;
+                }
+                
+                self.display_buffer[current_pixel] ^= 0xFFFFFF;
+            }
+        }
+        
+        output_tx.send(self.display_buffer.clone()).unwrap();
+    }
 }
 
 const FONT_START: usize = 0x50;
@@ -178,16 +185,14 @@ mod tests {
     use std::io::Cursor;
 
     #[test]
-    fn test_load_small_rom() {
-        let mut memory = [0u8; 4096];
+    fn test_load_rom() {
         let rom_data = vec![0xAA, 0xBB, 0xCC];
         let rom = Cursor::new(rom_data);
+        let emulator = Emulator::init(rom.clone());
 
-        load_program(&mut memory, rom);
-
-        assert_eq!(memory[PROGRAM_START], 0xAA);
-        assert_eq!(memory[PROGRAM_START + 1], 0xBB);
-        assert_eq!(memory[PROGRAM_START + 2], 0xCC);
+        assert_eq!(emulator.memory[PROGRAM_START], 0xAA);
+        assert_eq!(emulator.memory[PROGRAM_START + 1], 0xBB);
+        assert_eq!(emulator.memory[PROGRAM_START + 2], 0xCC);
     }
 
 }
