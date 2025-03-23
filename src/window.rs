@@ -18,6 +18,7 @@ pub fn run(input_tx: Sender<Key>, output_rx: Receiver<DisplayBuffer>) {
             break
         }
 
+        // TODO: send only released keys.
         window.get_keys().iter().for_each(|key| {
             input_tx.send(*key).unwrap();
         });
