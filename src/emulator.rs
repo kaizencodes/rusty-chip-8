@@ -4,6 +4,7 @@ use std::sync::mpsc::{Receiver, Sender};
 use std::thread::sleep;
 use std::time::{self, Duration};
 use rand::random;
+use std::fmt;
 
 use minifb::Key;
 use crate::window;
@@ -122,6 +123,18 @@ pub fn run(rom: String, input_rx: Receiver<Key>, output_tx: Sender<window::Displ
             }
             _ => {
                 eprintln!("Unmatched instruction: {:04X}", instruction)
+            }
+        }
+
+        if debug {
+            println!("Instruction: {:04X}", instruction);
+            println!("{}", emulator);
+            println!("Press N to continue.");
+            // while let input_rx.recv()
+            while let Ok(key) = input_rx.recv() {
+                if key == Key::N {
+                    break;
+                }
             }
         }
 
@@ -415,6 +428,17 @@ impl Emulator {
         }
         
         output_tx.send(self.display_buffer.clone()).unwrap();
+    }
+}
+
+impl fmt::Display for Emulator {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "PC: {:#X}, I: {:#X}, Delay Timer: {}, Sound Timer: {}\n",
+               self.pc, self.index_register, self.delay_timer, self.sound_timer)?;
+        write!(f, "Registers: {:?}\n", self.registers)?;
+        write!(f, "Stack: {:?}\n", self.stack)?;
+
+        Ok(())
     }
 }
 
