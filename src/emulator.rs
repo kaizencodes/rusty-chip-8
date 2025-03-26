@@ -417,7 +417,7 @@ impl Emulator {
                     continue;
                 }
                 
-                let current_pixel = (y+y_offset) as usize * window::HEIGHT + (x+x_offset) as usize;
+                let current_pixel = (y+y_offset) as usize * window::WIDTH + (x+x_offset) as usize;
     
                 if self.display_buffer[current_pixel] == 0xFFFFFF {
                     self.registers[0xF] = 0x1;
