@@ -304,21 +304,15 @@ impl Emulator {
     }
 
     fn right_shift(&mut self, vx: usize, vy: usize) {
-        if CHIP_48_MODE {
-            self.set_vx_to_vy(vx, vy);
-        }
-        let right_bit = self.registers[vx] & 0xF;
-        self.set_vx_to_value(0xF, right_bit);
-        self.registers[vx] >>= 1;
+        let right_bit = self.registers[vy] & 0b1;
+        (self.registers[vx], _) = self.registers[vy].overflowing_shr(1);
+        self.registers[0xF] = right_bit;
     }
 
     fn left_shift(&mut self, vx: usize, vy: usize) {
-        if CHIP_48_MODE {
-            self.set_vx_to_vy(vx, vy);
-        }
-        let left_bit = self.registers[vx] >> 7;
-        self.set_vx_to_value(0xF, left_bit);
-        self.registers[vx] <<= 1;
+        let left_bit = (self.registers[vy] >> 7) & 0b1;
+        (self.registers[vx], _) = self.registers[vy].overflowing_shl(1);
+        self.registers[0xF] = left_bit;
     }
 
     fn jump_with_offset(&mut self, vx: usize, address: u16) {
