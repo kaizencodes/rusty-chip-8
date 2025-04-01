@@ -386,9 +386,7 @@ impl Emulator {
             self.memory[self.index_register as usize + current_reg as usize] = self.registers[current_reg];
         }
 
-        if !CHIP_48_MODE {
-            self.index_register += vx as u16 + 1;
-        }
+        self.index_register += vx as u16 + 1;
     }
 
     fn load_from_memory(&mut self, vx: usize) {
@@ -396,9 +394,7 @@ impl Emulator {
             self.registers[current_reg] = self.memory[self.index_register as usize + current_reg as usize];
         }
         
-        if !CHIP_48_MODE {
-            self.index_register += vx as u16 + 1;
-        }
+        self.index_register += vx as u16 + 1;
     }
     
     fn display(&mut self, vx: usize, vy: usize, num_of_rows: u8, output_tx: &Sender<window::DisplayBuffer>) {
