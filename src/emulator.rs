@@ -275,14 +275,17 @@ impl Emulator {
     }
 
     fn or(&mut self, vx: usize, vy: usize) {
+        self.registers[0xF] = 0x0;
         self.registers[vx] |= self.registers[vy]
     }
 
     fn and(&mut self, vx: usize, vy: usize) {
+        self.registers[0xF] = 0x0;
         self.registers[vx] &= self.registers[vy]
     }
 
     fn xor(&mut self, vx: usize, vy: usize) {
+        self.registers[0xF] = 0x0;
         self.registers[vx] ^= self.registers[vy]
     }
 
