@@ -5,9 +5,11 @@ use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::time::{self, Duration};
 use rand::random;
+use rodio::Source;
 use std::fmt;
 use crate::window;
 use timer::Timer;
+use rodio::{source::SineWave, OutputStream, Sink};
 
 mod timer;
 
@@ -25,7 +27,19 @@ pub fn run(rom: String, output_tx: Sender<window::DisplayBuffer>, key_map: Arc<M
     let file: File = File::open(rom).expect("Rom could not be opened.");
     
     let mut emulator = Emulator::init(file);
-    loop {                
+    
+    let (_stream, stream_handle) = OutputStream::try_default().unwrap();
+    let sink = Sink::try_new(&stream_handle).unwrap();
+    let beep = SineWave::new(440.0).amplify(0.2).repeat_infinite();
+    sink.append(beep.clone());
+    
+    loop {
+        if emulator.sound_timer.get() > 0 as u8 {
+            sink.play();
+        } else {
+            sink.pause();
+        }
+
         let instruction = emulator.fetch();
 
         if debug {
