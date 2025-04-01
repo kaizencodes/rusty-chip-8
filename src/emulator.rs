@@ -7,6 +7,9 @@ use std::time::{self, Duration};
 use rand::random;
 use std::fmt;
 use crate::window;
+use timer::Timer;
+
+mod timer;
 
 const MEMORY_SIZE: usize = 4096;
 // TODO: move it to a config file
@@ -140,8 +143,8 @@ struct Emulator {
     pc: usize,
     index_register: u16,
     stack: Vec<u16>,
-    delay_timer: u8,
-    sound_timer: u8,
+    delay_timer: Timer,
+    sound_timer: Timer,
     registers: [u8; 0x10],
     display_buffer: [u32; window::WIDTH * window::HEIGHT],
 }
@@ -158,8 +161,8 @@ impl Emulator {
             pc: PROGRAM_START, 
             index_register: 0x0, 
             stack: Stack::new(), 
-            delay_timer: 0x0, 
-            sound_timer: 0x0, 
+            delay_timer: Timer::init(), 
+            sound_timer: Timer::init(), 
             registers: [0x0; 0x10],
             display_buffer: [0 as u32; window::WIDTH * window::HEIGHT],
         }
@@ -236,16 +239,16 @@ impl Emulator {
     }
 
     fn set_vx_to_delay(&mut self, vx: usize) {
-        self.registers[vx] = self.delay_timer;
+        self.registers[vx] = self.delay_timer.get();
     }
 
     fn set_delay_to_vx(&mut self, vx: usize) {
-        self.delay_timer = self.registers[vx];
+        self.delay_timer.set(self.registers[vx]);
     }
 
     // TODO: make beeping sound when sound_time > 0;
     fn set_sound_to_vx(&mut self, vx: usize) {
-        self.sound_timer = self.registers[vx];
+        self.sound_timer.set(self.registers[vx]);
     }
     
     fn add_value(&mut self, vx: usize, value: u8) {
@@ -426,7 +429,7 @@ impl Emulator {
 impl fmt::Display for Emulator {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "PC: {:#X}, I: {:#X}, Delay Timer: {}, Sound Timer: {}\n",
-               self.pc, self.index_register, self.delay_timer, self.sound_timer)?;
+               self.pc, self.index_register, self.delay_timer.get(), self.sound_timer.get())?;
         write!(f, "Registers: {:?}\n", self.registers)?;
         write!(f, "Stack: {:?}\n", self.stack)?;
 
@@ -485,5 +488,4 @@ mod tests {
         assert_eq!(emulator.memory[PROGRAM_START + 1], 0xBB);
         assert_eq!(emulator.memory[PROGRAM_START + 2], 0xCC);
     }
-
 }
