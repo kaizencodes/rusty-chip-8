@@ -1,4 +1,4 @@
-use std::sync::mpsc;
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use anyhow::Result;
 use clap::Parser;
@@ -19,15 +19,16 @@ struct Args {
 
 fn main() -> Result<()> {
     let args = Args::parse();
+    let key_map = Arc::new(Mutex::new(0u16));
+    let key_map_clone = Arc::clone(&key_map);
 
     let (output_tx, output_rx) = mpsc::channel::<window::DisplayBuffer>(); // Display channel
-    let (input_tx, input_rx) = mpsc::channel::<minifb::Key>(); // Keyboard input channel
-    
+
     // emulator is ran in separate thread so it can work independently from the window.
-    thread::spawn(move || { emulator::run(args.rom, input_rx, output_tx, args.debug) });
+    thread::spawn(move || { emulator::run(args.rom, output_tx, key_map_clone, args.debug) });
     
     // window has to run on main thread.
-    window::run(input_tx, output_rx);
+    window::run(output_rx, key_map);
 
     Ok(())
 }

@@ -1,12 +1,11 @@
 use std::fs::File;
 use std::num::Wrapping;
-use std::sync::mpsc::{Receiver, Sender};
 use std::thread::sleep;
+use std::sync::mpsc::Sender;
+use std::sync::{Arc, Mutex};
 use std::time::{self, Duration};
 use rand::random;
 use std::fmt;
-
-use minifb::Key;
 use crate::window;
 
 const MEMORY_SIZE: usize = 4096;
@@ -15,32 +14,37 @@ const LOOP_RATE: u64 = 700;
 const SLEEP_DURATION: Duration = time::Duration::from_nanos(1_000_000_000 / LOOP_RATE);
 const CHIP_48_MODE: bool = true;
 
-// backspace not present in the Chip8 keyboard so we treat that as the empty value.
-const EMPTY_KEY: Key = Key::Backspace;
-
 type Memory = [u8; MEMORY_SIZE];
 type Stack = Vec<u16>;
 type Instruction = u16;
 
-pub fn run(rom: String, input_rx: Receiver<Key>, output_tx: Sender<window::DisplayBuffer>) {    
+pub fn run(rom: String, output_tx: Sender<window::DisplayBuffer>, key_map: Arc<Mutex<u16>>, debug: bool) {    
     let file: File = File::open(rom).expect("Rom could not be opened.");
     
     let mut emulator = Emulator::init(file);
-
     loop {                
         let instruction = emulator.fetch();
+
+        if debug {
+            println!("Instruction: {:04X}", instruction);
+            println!("{}", emulator);
+            println!("Press C to continue.");
+            loop {
+                let flag = key_map.lock().unwrap();
+                if (*flag >> 11) & 0b1 == 1 {
+                    break
+                }
+                drop(flag);
+                sleep(SLEEP_DURATION * 10);
+            }
+        }
+
         let op_code = (instruction >> 12) & 0xF;
         let vx = ((instruction >> 8) & 0xF) as usize;
         let vy = ((instruction >> 4) & 0xF) as usize;
         let address = instruction & 0xFFF;
         let value = (instruction & 0xFF) as u8;
         let short_value = (instruction & 0xF) as u8;
-
-        // not sure if this should be initialized here or outside the loop, need to run some programs to test.
-        let mut last_key: Key = EMPTY_KEY;
-        while let Ok(key) = input_rx.try_recv() {
-            last_key = key;
-        }
 
         match op_code {
             0x0 => { 
@@ -102,15 +106,15 @@ pub fn run(rom: String, input_rx: Receiver<Key>, output_tx: Sender<window::Displ
             },
             0xE => {
                 match value {
-                    0x9E => emulator.skip_if_key_pressed(vx, last_key),
-                    0xA1 => emulator.skip_if_key_not_pressed(vx, last_key),
+                    0x9E => emulator.skip_if_key_pressed(vx, &key_map),
+                    0xA1 => emulator.skip_if_key_not_pressed(vx, &key_map),
                     _ => eprintln!("Unmatched instruction: {:04X}", instruction)
                 }
             },
             0xF => {
                 match value {
                     0x07 => emulator.set_vx_to_delay(vx),
-                    0x0A => emulator.get_key(vx, last_key),
+                    0x0A => emulator.get_key(vx, &key_map),
                     0x15 => emulator.set_delay_to_vx(vx),
                     0x18 => emulator.set_sound_to_vx(vx),
                     0x1E => emulator.add_to_index(vx),
@@ -126,21 +130,10 @@ pub fn run(rom: String, input_rx: Receiver<Key>, output_tx: Sender<window::Displ
             }
         }
 
-        if debug {
-            println!("Instruction: {:04X}", instruction);
-            println!("{}", emulator);
-            println!("Press N to continue.");
-            // while let input_rx.recv()
-            while let Ok(key) = input_rx.recv() {
-                if key == Key::N {
-                    break;
-                }
-            }
-        }
-
         sleep(SLEEP_DURATION);
     }
 }
+
 
 struct Emulator {
     memory: Memory,
@@ -220,14 +213,16 @@ impl Emulator {
         }
     }
 
-    fn skip_if_key_pressed(&mut self, vx: usize, key: Key) {
-        if self.registers[vx] == key as u8 {
+    fn skip_if_key_pressed(&mut self, vx: usize, key_map: &Arc<Mutex<u16>>) {
+        let flag = key_map.lock().unwrap();
+        if (*flag >> self.registers[vx]) & 0b1 == 1 {
             self.pc += 2;
         }
     }
 
-    fn skip_if_key_not_pressed(&mut self, vx: usize, key: Key) {
-        if self.registers[vx] != key as u8 {
+    fn skip_if_key_not_pressed(&mut self, vx: usize, key_map: &Arc<Mutex<u16>>) {
+        let flag = key_map.lock().unwrap();
+        if (*flag >> self.registers[vx]) & 0b1 == 0 {
             self.pc += 2;
         }
     }
@@ -349,11 +344,14 @@ impl Emulator {
         self.index_register = new_value;
     }
 
-    fn get_key(&mut self, vx: usize, key: Key) {
-        if key == EMPTY_KEY {
+    fn get_key(&mut self, vx: usize, key_map: &Arc<Mutex<u16>>) {
+        let flag = key_map.lock().unwrap();
+        if *flag == 0x00 {
             self.pc -= 2;
         } else {
-            self.registers[vx] = key as u8;
+            // taking the most significant bit as the pressed button.
+            let val = flag.ilog(2);
+            self.registers[vx] = val as u8;
         }
     }
 
