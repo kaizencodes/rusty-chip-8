@@ -4,6 +4,7 @@ use std::thread::sleep;
 use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::time::{self, Duration};
+use fonts::load_fonts;
 use rand::random;
 use std::fmt;
 
@@ -33,20 +34,6 @@ pub fn run(rom: String, output_tx: Sender<window::DisplayBuffer>, key_map: Arc<M
         audio_handler.call(emulator.sound_timer.get());
 
         let instruction = emulator.fetch();
-
-        if debug {
-            println!("Instruction: {:04X}", instruction);
-            println!("{}", emulator);
-            println!("Press C to continue.");
-            loop {
-                let flag = key_map.lock().unwrap();
-                if (*flag >> 11) & 0b1 == 1 {
-                    break
-                }
-                drop(flag);
-                sleep(SLEEP_DURATION * 10);
-            }
-        }
 
         let op_code = (instruction >> 12) & 0xF;
         let vx = ((instruction >> 8) & 0xF) as usize;
@@ -137,13 +124,28 @@ pub fn run(rom: String, output_tx: Sender<window::DisplayBuffer>, key_map: Arc<M
             _ => {
                 eprintln!("Unmatched instruction: {:04X}", instruction)
             }
+            
+        }
+
+        if debug {
+            println!("Instruction: {:04X}", instruction);
+            println!("{}", emulator);
+            println!("Press C to continue.");
+            loop {
+                let flag = key_map.lock().unwrap();
+                if (*flag >> 11) & 0b1 == 1 {
+                    break
+                }
+                drop(flag);
+                sleep(SLEEP_DURATION * 10);
+            }
         }
 
         sleep(SLEEP_DURATION);
     }
 }
 
-
+mod fonts;
 struct Emulator {
     memory: Memory,
     pc: usize,
@@ -322,7 +324,7 @@ impl Emulator {
         self.registers[0xF] = left_bit;
     }
 
-    fn jump_with_offset(&mut self, vx: usize, address: u16) {
+    fn jump_with_offset(&mut self, _vx: usize, address: u16) {
         let offset: u8;
         offset = self.registers[0x0];
         
@@ -339,7 +341,7 @@ impl Emulator {
 
     fn set_index_to_font(&mut self, vx: usize) {
         // mask the first 4 bits of vx?
-        self.index_register = (FONT_START + self.registers[vx] as usize * FONT_LENGTH) as u16;
+        self.index_register = (fonts::START + self.registers[vx] as usize * fonts::LENGTH) as u16;
     }
 
     fn add_to_index(&mut self, vx: usize) {
@@ -437,31 +439,6 @@ impl fmt::Display for Emulator {
 
         Ok(())
     }
-}
-
-const FONT_START: usize = 0x50;
-const FONT_LENGTH: usize = 5;
-const FONT_SET: [u8; 80] = [
-    0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-    0x20, 0x60, 0x20, 0x20, 0x70, // 1
-    0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-    0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-    0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-    0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-    0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-    0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-    0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-    0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-    0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-    0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-    0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-    0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-    0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-    0xF0, 0x80, 0xF0, 0x80, 0x80, // F
-];
-
-fn load_fonts(memory: &mut Memory) {
-    memory[FONT_START..FONT_START + FONT_SET.len()].copy_from_slice(&FONT_SET);
 }
 
 const PROGRAM_START: usize = 0x200;
