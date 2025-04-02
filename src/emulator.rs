@@ -18,7 +18,6 @@ const MEMORY_SIZE: usize = 4096;
 // TODO: move it to a config file
 const LOOP_RATE: u64 = 700;
 const SLEEP_DURATION: Duration = time::Duration::from_nanos(1_000_000_000 / LOOP_RATE);
-const CHIP_48_MODE: bool = true;
 
 type Memory = [u8; MEMORY_SIZE];
 type Stack = Vec<u16>;
@@ -32,7 +31,7 @@ pub fn run(rom: String, output_tx: Sender<window::DisplayBuffer>, key_map: Arc<M
 
     loop {
         audio_handler.call(emulator.sound_timer.get());
-        
+
         let instruction = emulator.fetch();
 
         if debug {
@@ -325,11 +324,8 @@ impl Emulator {
 
     fn jump_with_offset(&mut self, vx: usize, address: u16) {
         let offset: u8;
-        if CHIP_48_MODE {
-            offset = self.registers[vx];
-        } else {
-            offset = self.registers[0x0];
-        }
+        offset = self.registers[0x0];
+        
         self.pc = address as usize + offset as usize;
     }
 
