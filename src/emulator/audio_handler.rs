@@ -1,7 +1,8 @@
 use rodio::{source::SineWave, OutputStream, Sink, Source};
 
 pub struct AudioHandler {
-    track: Sink
+    track: Sink,
+    _stream: OutputStream
 }
 
 impl AudioHandler {
@@ -10,15 +11,16 @@ impl AudioHandler {
         let sink = Sink::try_new(&stream_handle).unwrap();
         let beep = SineWave::new(440.0).amplify(0.2).repeat_infinite();
         sink.append(beep.clone());  
-
-        Self { track: sink }
+        
+        // stream should not be dropped while we need to play the sound.
+        Self { track: sink, _stream }
     }
 
     pub fn call(&self, timer: u8) {
         if timer > 0 as u8 {
-            self.track.play();
+            self.track.play()
         } else {
-            self.track.pause();
+            self.track.pause()
         }
     }
 }
