@@ -1,8 +1,6 @@
-use super::Memory;
-
 pub const START: usize = 0x50;
 pub const LENGTH: usize = 5;
-const FONT_SET: [u8; 80] = [
+pub const FONT_SET: [u8; 80] = [
     0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
     0x20, 0x60, 0x20, 0x20, 0x70, // 1
     0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
@@ -20,7 +18,3 @@ const FONT_SET: [u8; 80] = [
     0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
     0xF0, 0x80, 0xF0, 0x80, 0x80, // F
 ];
-
-pub fn load_fonts(memory: &mut Memory) {
-    memory[START..START + FONT_SET.len()].copy_from_slice(&FONT_SET);
-}

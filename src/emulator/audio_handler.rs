@@ -16,7 +16,7 @@ impl AudioHandler {
         Self { track: sink, _stream }
     }
 
-    pub fn call(&self, timer: u8) {
+    pub fn tick(&self, timer: u8) {
         if timer > 0 as u8 {
             self.track.play()
         } else {
