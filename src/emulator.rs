@@ -1,6 +1,5 @@
 use std::fs::File;
 use std::thread::sleep;
-use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::time::{self, Duration};
 use chip8::Chip8;
@@ -15,7 +14,7 @@ mod audio_handler;
 const LOOP_RATE: u64 = 700;
 const SLEEP_DURATION: Duration = time::Duration::from_nanos(1_000_000_000 / LOOP_RATE);
 
-pub fn run(rom: String, output_tx: Sender<window::DisplayBuffer>, key_map: Arc<Mutex<u16>>, debug: bool) {    
+pub fn run(rom: String, display_buffer: Arc<Mutex<window::DisplayBuffer>>, key_map: Arc<Mutex<u16>>, debug: bool) {    
     let file: File = File::open(rom).expect("Rom could not be opened.");
     
     let mut chip = Chip8::init(file);

@@ -1,4 +1,4 @@
-use std::sync::{mpsc, Arc, Mutex};
+use std::sync::{Arc, Mutex};
 use std::thread;
 use anyhow::Result;
 use clap::Parser;
@@ -20,15 +20,15 @@ struct Args {
 fn main() -> Result<()> {
     let args = Args::parse();
     let key_map = Arc::new(Mutex::new(0u16));
+    let display_buffer = Arc::new(Mutex::new([0u32; 2048]));
+    let display_buffer_clone = Arc::clone(&display_buffer);
     let key_map_clone = Arc::clone(&key_map);
 
-    let (output_tx, output_rx) = mpsc::channel::<window::DisplayBuffer>(); // Display channel
-
     // emulator is ran in separate thread so it can work independently from the window.
-    thread::spawn(move || { emulator::run(args.rom, output_tx, key_map_clone, args.debug) });
+    thread::spawn(move || { emulator::run(args.rom, display_buffer_clone, key_map_clone, args.debug) });
     
     // window has to run on main thread.
-    window::run(output_rx, key_map);
+    window::run(display_buffer, key_map);
 
     Ok(())
 }

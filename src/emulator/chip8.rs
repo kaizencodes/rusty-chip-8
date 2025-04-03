@@ -1,5 +1,4 @@
 use std::fmt;
-use std::sync::mpsc::Sender;
 use std::sync::{Arc, Mutex};
 use std::num::Wrapping;
 
@@ -24,7 +23,6 @@ pub struct Chip8 {
     pub delay_timer: Timer,
     pub sound_timer: Timer,
     pub registers: [u8; 0x10],
-    pub display_buffer: [u32; window::WIDTH * window::HEIGHT],
 }
 
 impl Chip8 {
@@ -42,7 +40,6 @@ impl Chip8 {
             delay_timer: Timer::init(), 
             sound_timer: Timer::init(), 
             registers: [0x0; 0x10],
-            display_buffer: [0 as u32; window::WIDTH * window::HEIGHT],
         }
     }
 

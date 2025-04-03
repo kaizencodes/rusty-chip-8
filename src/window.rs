@@ -1,40 +1,40 @@
-use std::{collections::HashMap, sync::{mpsc::{Receiver, Sender}, Arc, Mutex}};
+use std::{collections::HashMap, sync::{Arc, Mutex}};
 use minifb::{Key, Window, WindowOptions};
 
 pub type DisplayBuffer = [u32; 2048];
-
 pub const WIDTH: usize = 64;
 pub const HEIGHT: usize = 32;
 
 // TODO: move it to a config file
 const REFRESH_RATE: usize = 60;
 
-pub fn run(output_rx: Receiver<DisplayBuffer>, data: Arc<Mutex<u16>>) {
+pub fn run(display_buffer: Arc<Mutex<DisplayBuffer>>, key_map: Arc<Mutex<u16>>) {
     let mut window = init();
-    let mut buffer: DisplayBuffer = [0 as u32; WIDTH * HEIGHT]; // 64x32 framebuffer
-    let key_map = create_keymap();
+    let mut buffer: DisplayBuffer; // 64x32 framebuffer
+    let key_bindings = create_bindings();
 
     loop {                
         if exit(&window) {
             break
         }
 
-        let mut num = data.lock().unwrap();
-        *num = 0x00;
+        let mut key_map = key_map.lock().unwrap();
+        *key_map = 0x00;
         
         window.get_keys().iter().for_each(|key| {
-            *num ^= key_map[key];
+            *key_map ^= key_bindings[key];
         });
-        drop(num);
-        
-        while let Ok(new_buffer) = output_rx.try_recv() {
-            buffer = new_buffer;
-        }
+        drop(key_map);
+
+        let display_buffer = display_buffer.lock().unwrap();
+        buffer = display_buffer.clone();
+        drop(display_buffer);
+
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
     }
 }
 
-fn create_keymap() -> HashMap<Key, u16> {
+fn create_bindings() -> HashMap<Key, u16> {
     HashMap::from([        
         (Key::Key1, 0b10),
         (Key::Key2, 0b100),
