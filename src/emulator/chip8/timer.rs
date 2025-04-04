@@ -1,4 +1,8 @@
-use std::{sync::{Arc, Mutex}, thread::{self, sleep}, time};
+use std::{
+    sync::{Arc, Mutex},
+    thread::{self, sleep},
+    time,
+};
 
 const TIMER_RATE: u64 = 60;
 
@@ -9,7 +13,7 @@ impl Timer {
         let mut timer = self.0.lock().unwrap();
         *timer = value;
         drop(timer);
-        
+
         let mutex = Arc::clone(&self.0);
         thread::spawn(move || loop {
             let mut timer = mutex.lock().unwrap();
@@ -30,5 +34,4 @@ impl Timer {
     pub fn init() -> Self {
         Timer(Arc::new(Mutex::new(0)))
     }
-    
 }

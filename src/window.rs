@@ -1,6 +1,6 @@
-use std::sync::{Arc, Mutex};
 use key_bindings::create_bindings;
 use minifb::{Key, Window, WindowOptions};
+use std::sync::{Arc, Mutex};
 
 pub type DisplayBuffer = [u32; 2048];
 pub const WIDTH: usize = 64;
@@ -16,14 +16,14 @@ pub fn run(display_buffer: Arc<Mutex<DisplayBuffer>>, key_map: Arc<Mutex<u16>>) 
     let mut buffer: DisplayBuffer; // 64x32 framebuffer
     let key_bindings = create_bindings();
 
-    loop {                
+    loop {
         if exit(&window) {
-            break
+            break;
         }
 
         let mut key_map = key_map.lock().unwrap();
         *key_map = 0x00;
-        
+
         window.get_keys().iter().for_each(|key| {
             if key_bindings.contains_key(key) {
                 *key_map ^= key_bindings[key];
@@ -39,13 +39,12 @@ pub fn run(display_buffer: Arc<Mutex<DisplayBuffer>>, key_map: Arc<Mutex<u16>>) 
     }
 }
 
-
 fn exit(window: &Window) -> bool {
     !window.is_open() || window.is_key_down(Key::Escape)
 }
 
 fn init() -> Window {
-    let mut window =Window::new(
+    let mut window = Window::new(
         "Rusty Chip-8",
         WIDTH,
         HEIGHT,
@@ -53,7 +52,9 @@ fn init() -> Window {
             resize: false,
             scale: minifb::Scale::X16, // Scale up for visibility
             ..WindowOptions::default()
-        }).unwrap_or_else(|e| panic!("{}", e));
+        },
+    )
+    .unwrap_or_else(|e| panic!("{}", e));
     window.set_target_fps(REFRESH_RATE);
 
     return window;

@@ -1,14 +1,14 @@
 use std::fmt;
-use std::sync::{Arc, Mutex};
 use std::num::Wrapping;
+use std::sync::{Arc, Mutex};
 
 use rand::random;
 use timer::Timer;
 
 use crate::window;
 
-mod timer;
 mod fonts;
+mod timer;
 
 const MEMORY_SIZE: usize = 4096;
 pub(crate) type Memory = [u8; MEMORY_SIZE];
@@ -28,17 +28,17 @@ pub struct Chip8 {
 impl Chip8 {
     pub fn init(rom: impl std::io::Read) -> Self {
         let mut memory = [0; MEMORY_SIZE];
-        
+
         load_fonts(&mut memory);
         load_program(&mut memory, rom);
 
         Self {
-            memory: memory, 
-            pc: PROGRAM_START, 
-            index_register: 0x0, 
-            stack: Stack::new(), 
-            delay_timer: Timer::init(), 
-            sound_timer: Timer::init(), 
+            memory: memory,
+            pc: PROGRAM_START,
+            index_register: 0x0,
+            stack: Stack::new(),
+            delay_timer: Timer::init(),
+            sound_timer: Timer::init(),
             registers: [0x0; 0x10],
         }
     }
@@ -51,10 +51,10 @@ impl Chip8 {
 
     // clear screen.
     pub fn op_00e0(&mut self, display_buffer: &Arc<Mutex<window::DisplayBuffer>>) {
-        let mut display_buffer =display_buffer.lock().unwrap();
+        let mut display_buffer = display_buffer.lock().unwrap();
         *display_buffer = [0 as u32; window::WIDTH * window::HEIGHT];
     }
-    
+
     // return from subroutine.
     pub fn op_00ee(&mut self) {
         self.pc = self.stack.pop().expect("Can't return from top level") as usize;
@@ -140,7 +140,7 @@ impl Chip8 {
     pub fn op_8xy5(&mut self, vx: usize, vy: usize) {
         let (new_value, underflow) = self.registers[vx].overflowing_sub(self.registers[vy]);
         self.registers[vx] = new_value;
-        
+
         if underflow {
             self.registers[0xF] = 0x0;
         } else {
@@ -159,7 +159,7 @@ impl Chip8 {
     pub fn op_8xy7(&mut self, vx: usize, vy: usize) {
         let (new_value, underflow) = self.registers[vy].overflowing_sub(self.registers[vx]);
         self.registers[vx] = new_value;
-        
+
         if underflow {
             self.registers[0xF] = 0x0;
         } else {
@@ -190,7 +190,7 @@ impl Chip8 {
     pub fn op_bnnn(&mut self, _vx: usize, address: u16) {
         let offset: u8;
         offset = self.registers[0x0];
-        
+
         self.pc = address as usize + offset as usize;
     }
 
@@ -200,10 +200,16 @@ impl Chip8 {
     }
 
     // display
-    pub fn op_dxyn(&mut self, vx: usize, vy: usize, num_of_rows: u8, display_buffer: &Arc<Mutex<window::DisplayBuffer>>) {
+    pub fn op_dxyn(
+        &mut self,
+        vx: usize,
+        vy: usize,
+        num_of_rows: u8,
+        display_buffer: &Arc<Mutex<window::DisplayBuffer>>,
+    ) {
         let x = self.registers[vx] & (window::WIDTH - 1) as u8;
         let y = self.registers[vy] & (window::HEIGHT - 1) as u8;
-    
+
         let mut display_buffer = display_buffer.lock().unwrap();
 
         self.registers[0xF] = 0;
@@ -211,27 +217,28 @@ impl Chip8 {
             if y + y_offset >= window::HEIGHT as u8 {
                 break;
             }
-    
+
             let sprite_row_slice = self.memory[self.index_register as usize + y_offset as usize];
             for x_offset in 0..8 {
                 if x + x_offset >= window::WIDTH as u8 {
                     break;
                 }
-                
+
                 let current_sprite_bit = sprite_row_slice >> (7 - x_offset) & 0x1;
                 if current_sprite_bit == 0x0 {
                     continue;
                 }
-                
-                let current_pixel = (y+y_offset) as usize * window::WIDTH + (x+x_offset) as usize;
-    
+
+                let current_pixel =
+                    (y + y_offset) as usize * window::WIDTH + (x + x_offset) as usize;
+
                 if display_buffer[current_pixel] == 0xFFFFFF {
                     self.registers[0xF] = 0x1;
                 }
-                
+
                 display_buffer[current_pixel] ^= 0xFFFFFF;
             }
-        }        
+        }
     }
 
     // skip if key is pressed
@@ -249,7 +256,7 @@ impl Chip8 {
             self.pc += 2;
         }
     }
-    
+
     // set vx to delay timer
     pub fn op_fx07(&mut self, vx: usize) {
         self.registers[vx] = self.delay_timer.get();
@@ -279,8 +286,10 @@ impl Chip8 {
 
     // add to index with overflow
     pub fn op_fx1e(&mut self, vx: usize) {
-        let (new_value, overflow) = self.index_register.overflowing_add(self.registers[vx] as u16);
-        
+        let (new_value, overflow) = self
+            .index_register
+            .overflowing_add(self.registers[vx] as u16);
+
         // this is a special behaviour for Amiga style interpreter. Spacefight 2091 depends on it.
         if overflow {
             self.registers[0xF] = 0x1;
@@ -298,13 +307,13 @@ impl Chip8 {
     // binary-coded decimal conversion
     pub fn op_fx33(&mut self, vx: usize) {
         let value = self.registers[vx];
-        
+
         let first_digit = value / 100;
         self.memory[self.index_register as usize] = first_digit;
-        
+
         let second_digit = (value / 10) % 10;
         self.memory[self.index_register as usize + 1] = second_digit;
-        
+
         let third_digit = (value % 100) % 10;
         self.memory[self.index_register as usize + 2] = third_digit;
     }
@@ -312,7 +321,8 @@ impl Chip8 {
     // save to memory
     pub fn op_fx55(&mut self, vx: usize) {
         for current_reg in 0..vx + 1 {
-            self.memory[self.index_register as usize + current_reg as usize] = self.registers[current_reg];
+            self.memory[self.index_register as usize + current_reg as usize] =
+                self.registers[current_reg];
         }
 
         self.index_register += vx as u16 + 1;
@@ -321,18 +331,24 @@ impl Chip8 {
     // load from memory
     pub fn op_fx65(&mut self, vx: usize) {
         for current_reg in 0..vx + 1 {
-            self.registers[current_reg] = self.memory[self.index_register as usize + current_reg as usize];
+            self.registers[current_reg] =
+                self.memory[self.index_register as usize + current_reg as usize];
         }
-        
+
         self.index_register += vx as u16 + 1;
     }
-    
 }
 
 impl fmt::Display for Chip8 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "PC: {:#X}, I: {:#X}, Delay Timer: {}, Sound Timer: {}\n",
-                self.pc, self.index_register, self.delay_timer.get(), self.sound_timer.get())?;
+        write!(
+            f,
+            "PC: {:#X}, I: {:#X}, Delay Timer: {}, Sound Timer: {}\n",
+            self.pc,
+            self.index_register,
+            self.delay_timer.get(),
+            self.sound_timer.get()
+        )?;
         write!(f, "Registers: {:?}\n", self.registers)?;
         write!(f, "Stack: {:?}\n", self.stack)?;
 
@@ -381,8 +397,8 @@ mod tests {
         emulator.op_00e0(&display_buffer);
 
         let buffer = display_buffer.lock().unwrap();
-        let expected_result  = [0x0; window::WIDTH * window::HEIGHT];
-        
+        let expected_result = [0x0; window::WIDTH * window::HEIGHT];
+
         assert_eq!(*buffer, expected_result);
     }
 
@@ -390,9 +406,9 @@ mod tests {
     fn test_op_00ee() {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
         emulator.stack.push(0x200);
-        
+
         emulator.op_00ee();
-        
+
         assert_eq!(emulator.pc, 0x200);
     }
 
@@ -400,16 +416,16 @@ mod tests {
     #[should_panic(expected = "Can't return from top level")]
     fn test_op_00ee_empty_stack() {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
-        
+
         emulator.op_00ee();
     }
 
     #[test]
     fn test_op_1nnn() {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
-        
+
         emulator.op_1nnn(0x300);
-        
+
         assert_eq!(emulator.pc, 0x300);
     }
 
@@ -417,9 +433,9 @@ mod tests {
     fn test_op_2nnn() {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
         emulator.pc = 0x200;
-    
+
         emulator.op_2nnn(0x400); // Call subroutine at address 0x400
-    
+
         assert_eq!(emulator.pc, 0x400); // Ensure PC jumps to new address
         assert_eq!(emulator.stack.last(), Some(&0x200)); // Ensure the previous PC is stored in the stack
     }
@@ -429,7 +445,7 @@ mod tests {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
         emulator.pc = 0x200;
         emulator.registers[3] = 0x42;
-        
+
         emulator.op_3xnn(3, 0x42);
 
         assert_eq!(emulator.pc, 0x202);
@@ -451,7 +467,7 @@ mod tests {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
         emulator.pc = 0x200;
         emulator.registers[3] = 0x41;
-        
+
         emulator.op_4xnn(3, 0x42);
 
         assert_eq!(emulator.pc, 0x202);
@@ -507,7 +523,7 @@ mod tests {
     #[test]
     fn test_op_7xnn() {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
-        emulator.registers[3] = 0x10; 
+        emulator.registers[3] = 0x10;
         emulator.op_7xnn(3, 0x20);
 
         assert_eq!(emulator.registers[3], 0x30);
@@ -546,7 +562,7 @@ mod tests {
         // OR
         emulator.op_8xy1(3, 4);
 
-        assert_eq!(emulator.registers[3], 0b1110); 
+        assert_eq!(emulator.registers[3], 0b1110);
         assert_eq!(emulator.registers[0xF], 0x0);
     }
 
@@ -719,9 +735,9 @@ mod tests {
     #[test]
     fn test_op_annn() {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
-        
+
         emulator.op_annn(0x456);
-        
+
         assert_eq!(emulator.index_register, 0x456);
     }
 
@@ -737,19 +753,19 @@ mod tests {
     #[test]
     fn test_op_dxyn() {
         use std::sync::{Arc, Mutex};
-        
+
         let display_buffer = Arc::new(Mutex::new([0xFFFFFF; window::WIDTH * window::HEIGHT]));
         let mut emulator = Chip8::init(Cursor::new(vec![]));
-        
+
         emulator.registers[0] = 10; // Set vx (x position)
-        emulator.registers[1] = 5;  // Set vy (y position)
+        emulator.registers[1] = 5; // Set vy (y position)
         emulator.index_register = 0;
-        
+
         // Set a sample sprite (a single row: 0xF0, which is 11110000 in binary)
         emulator.memory[0] = 0xF0;
-        
+
         let num_of_rows = 1;
-        
+
         emulator.op_dxyn(0, 1, num_of_rows, &display_buffer);
 
         let mut expected_result = [0xFFFFFF; window::WIDTH * window::HEIGHT];
@@ -828,7 +844,7 @@ mod tests {
         emulator.op_fx0a(2, &key_map);
 
         // Assert that the program counter has decreased by 2 (indicating the instruction was skipped)
-        assert_eq!(emulator.pc, 0x1FE);  // initial 0x200 - 0x2 = 0x1FE
+        assert_eq!(emulator.pc, 0x1FE); // initial 0x200 - 0x2 = 0x1FE
     }
 
     #[test]
@@ -842,7 +858,7 @@ mod tests {
         assert_eq!(emulator.index_register, 0x1001);
         assert_eq!(emulator.registers[0xF], 0x0);
     }
-    
+
     #[test]
     fn test_op_fx1e_with_overflow() {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
@@ -870,9 +886,9 @@ mod tests {
     fn test_op_fx33() {
         let mut emulator = Chip8::init(Cursor::new(vec![]));
         emulator.registers[0] = 234;
-    
+
         emulator.op_fx33(0);
-    
+
         assert_eq!(emulator.memory[emulator.index_register as usize], 2);
         assert_eq!(emulator.memory[emulator.index_register as usize + 1], 3);
         assert_eq!(emulator.memory[emulator.index_register as usize + 2], 4);
@@ -923,4 +939,3 @@ mod tests {
         assert_eq!(emulator.index_register, 0x304);
     }
 }
-

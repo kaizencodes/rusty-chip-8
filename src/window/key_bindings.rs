@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use minifb::Key;
 
 pub fn create_bindings() -> HashMap<Key, u16> {
-    HashMap::from([        
+    HashMap::from([
         (Key::Key1, 0b1 << 1),
         (Key::Key2, 0b1 << 2),
         (Key::Key3, 0b1 << 3),
