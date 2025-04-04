@@ -35,79 +35,79 @@ pub fn run(rom: String, display_buffer: Arc<Mutex<window::DisplayBuffer>>, key_m
         match op_code {
             0x0 => { 
                 match value {
-                    0xE0 => chip.clear_screen(&output_tx) ,
-                    0xEE => chip.return_from_subroutine(),
+                    0xE0 => chip.op_00e0(&display_buffer) ,
+                    0xEE => chip.op_00ee(),
                     _ => eprintln!("Unmatched instruction: {:04X}", instruction)                    
                 }
             },
             0x1 => { 
-                chip.jump(address) 
+                chip.op_1nnn(address) 
             },
             0x2 => {
-                chip.call_subroutine(address)
+                chip.op_2nnn(address)
             }
             0x3 => {
-                chip.skip_if_vx_eq_value(vx, value);
+                chip.op_3xnn(vx, value);
             }
             0x4 => {
-                chip.skip_if_vx_not_eq_value(vx, value);
+                chip.op_4xnn(vx, value);
             }
             0x5 => {
-                chip.skip_if_vx_eq_vy(vx, vy);
+                chip.op_5xy0(vx, vy);
             }
             0x6 => {
-                chip.set_vx_to_value(vx, value);
+                chip.op_6xnn(vx, value);
             },
             0x7 => {
-                chip.add_value(vx, value);
+                chip.op_7xnn(vx, value);
             },
             0x8 => {
                 match short_value {
-                    0x0 => chip.set_vx_to_vy(vx, vy),
-                    0x1 => chip.or(vx, vy),
-                    0x2 => chip.and(vx, vy),
-                    0x3 => chip.xor(vx, vy),
-                    0x4 => chip.add_vy(vx, vy),
-                    0x5 => chip.sub(vx, vy),
-                    0x6 => chip.right_shift(vx, vy),
-                    0x7 => chip.sub_reversed(vx, vy),
-                    0xE => chip.left_shift(vx, vy),
+                    0x0 => chip.op_8xy0(vx, vy),
+                    0x1 => chip.op_8xy1(vx, vy),
+                    0x2 => chip.op_8xy2(vx, vy),
+                    0x3 => chip.op_8xy3(vx, vy),
+                    0x4 => chip.op_8xy4(vx, vy),
+                    0x5 => chip.op_8xy5(vx, vy),
+                    0x6 => chip.op_8xy6(vx, vy),
+                    0x7 => chip.op_8xy7(vx, vy),
+                    0xE => chip.op_8xye(vx, vy),
                     _ => eprintln!("Unmatched instruction: {:04X}", instruction),
                 }
             }
             0x9 => {
-                chip.skip_if_vx_not_eq_vy(vx as usize, vy as usize);
+                chip.op_9xy0(vx as usize, vy as usize);
             }
             0xA => {
-                chip.set_index(address);
+                chip.op_annn(address);
             },
             0xB => {
-                chip.jump_with_offset(vx, address);
+                chip.op_bnnn(vx, address);
             },
             0xC => {
-                chip.random(vx, value);
+                chip.op_cxnn(vx, value);
             },
             0xD => {
-                chip.display(vx, vy, short_value, &output_tx);
+                chip.op_dxyn(vx, vy, short_value, &display_buffer);
             },
             0xE => {
                 match value {
-                    0x9E => chip.skip_if_key_pressed(vx, &key_map),
-                    0xA1 => chip.skip_if_key_not_pressed(vx, &key_map),
+                    0x9E => chip.op_ex9e(vx, &key_map),
+                    0xA1 => chip.op_exa1(vx, &key_map),
                     _ => eprintln!("Unmatched instruction: {:04X}", instruction)
                 }
             },
             0xF => {
                 match value {
-                    0x07 => chip.set_vx_to_delay(vx),
-                    0x0A => chip.get_key(vx, &key_map),
-                    0x15 => chip.set_delay_to_vx(vx),
-                    0x18 => chip.set_sound_to_vx(vx),
-                    0x1E => chip.add_to_index(vx),
-                    0x29 => chip.set_index_to_font(vx),
-                    0x33 => chip.binary_coded_decimal_conversion(vx),
-                    0x55 => chip.store_in_memory(vx),
-                    0x65 => chip.load_from_memory(vx),
+                    0x07 => chip.op_fx07(vx),
+                    0x0A => chip.op_fx0a(vx, &key_map),
+                    0x15 => chip.op_fx15(vx),
+                    0x18 => chip.op_fx18(vx),
+                    0x1E => chip.op_fx1e(vx),
+                    0x29 => chip.op_fx29(vx),
+                    0x33 => chip.op_fx33(vx),
+                    0x55 => chip.op_fx55(vx),
+                    0x65 => chip.op_fx65(vx),
                     _ => eprintln!("Unmatched instruction: {:04X}", instruction)
                 }
             }
