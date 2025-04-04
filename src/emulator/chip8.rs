@@ -319,8 +319,7 @@ impl Chip8 {
     // save to memory
     pub fn op_fx55(&mut self, vx: usize) {
         for current_reg in 0..vx + 1 {
-            self.memory[self.index_register as usize + current_reg] =
-                self.registers[current_reg];
+            self.memory[self.index_register as usize + current_reg] = self.registers[current_reg];
         }
 
         self.index_register += vx as u16 + 1;
@@ -329,8 +328,7 @@ impl Chip8 {
     // load from memory
     pub fn op_fx65(&mut self, vx: usize) {
         for current_reg in 0..vx + 1 {
-            self.registers[current_reg] =
-                self.memory[self.index_register as usize + current_reg];
+            self.registers[current_reg] = self.memory[self.index_register as usize + current_reg];
         }
 
         self.index_register += vx as u16 + 1;
