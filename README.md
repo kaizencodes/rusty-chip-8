@@ -11,6 +11,9 @@ To run the emulator with a ROM:
 ```bash
 cargo run -- --rom roms/Pong.ch8
 ```
+Controls for Pong: 1 Up, Q Down.
+
+Exit the emulator with Esc. 
 
 ---
 
