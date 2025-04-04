@@ -20,7 +20,7 @@ impl AudioHandler {
     }
 
     pub fn tick(&self, timer: u8) {
-        if timer > 0 as u8 {
+        if timer > 0u8 {
             self.track.play()
         } else {
             self.track.pause()

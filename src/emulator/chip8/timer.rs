@@ -28,7 +28,7 @@ impl Timer {
 
     pub fn get(&self) -> u8 {
         let timer = self.0.lock().unwrap();
-        timer.clone()
+        *timer
     }
 
     pub fn init() -> Self {

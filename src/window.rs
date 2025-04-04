@@ -32,7 +32,7 @@ pub fn run(display_buffer: Arc<Mutex<DisplayBuffer>>, key_map: Arc<Mutex<u16>>) 
         drop(key_map);
 
         let display_buffer = display_buffer.lock().unwrap();
-        buffer = display_buffer.clone();
+        buffer = *display_buffer;
         drop(display_buffer);
 
         window.update_with_buffer(&buffer, WIDTH, HEIGHT).unwrap();
@@ -57,5 +57,5 @@ fn init() -> Window {
     .unwrap_or_else(|e| panic!("{}", e));
     window.set_target_fps(REFRESH_RATE);
 
-    return window;
+    window
 }

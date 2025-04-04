@@ -33,7 +33,7 @@ impl Chip8 {
         load_program(&mut memory, rom);
 
         Self {
-            memory: memory,
+            memory,
             pc: PROGRAM_START,
             index_register: 0x0,
             stack: Stack::new(),
@@ -52,7 +52,7 @@ impl Chip8 {
     // clear screen.
     pub fn op_00e0(&mut self, display_buffer: &Arc<Mutex<window::DisplayBuffer>>) {
         let mut display_buffer = display_buffer.lock().unwrap();
-        *display_buffer = [0 as u32; window::WIDTH * window::HEIGHT];
+        *display_buffer = [0u32; window::WIDTH * window::HEIGHT];
     }
 
     // return from subroutine.
@@ -188,9 +188,7 @@ impl Chip8 {
 
     // jump with offset
     pub fn op_bnnn(&mut self, _vx: usize, address: u16) {
-        let offset: u8;
-        offset = self.registers[0x0];
-
+        let offset = self.registers[0x0];
         self.pc = address as usize + offset as usize;
     }
 
@@ -224,7 +222,7 @@ impl Chip8 {
                     break;
                 }
 
-                let current_sprite_bit = sprite_row_slice >> (7 - x_offset) & 0x1;
+                let current_sprite_bit = (sprite_row_slice >> (7 - x_offset)) & 0x1;
                 if current_sprite_bit == 0x0 {
                     continue;
                 }
@@ -321,7 +319,7 @@ impl Chip8 {
     // save to memory
     pub fn op_fx55(&mut self, vx: usize) {
         for current_reg in 0..vx + 1 {
-            self.memory[self.index_register as usize + current_reg as usize] =
+            self.memory[self.index_register as usize + current_reg] =
                 self.registers[current_reg];
         }
 
@@ -332,7 +330,7 @@ impl Chip8 {
     pub fn op_fx65(&mut self, vx: usize) {
         for current_reg in 0..vx + 1 {
             self.registers[current_reg] =
-                self.memory[self.index_register as usize + current_reg as usize];
+                self.memory[self.index_register as usize + current_reg];
         }
 
         self.index_register += vx as u16 + 1;
@@ -341,16 +339,16 @@ impl Chip8 {
 
 impl fmt::Display for Chip8 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
+        writeln!(
             f,
-            "PC: {:#X}, I: {:#X}, Delay Timer: {}, Sound Timer: {}\n",
+            "PC: {:#X}, I: {:#X}, Delay Timer: {}, Sound Timer: {}",
             self.pc,
             self.index_register,
             self.delay_timer.get(),
             self.sound_timer.get()
         )?;
-        write!(f, "Registers: {:?}\n", self.registers)?;
-        write!(f, "Stack: {:?}\n", self.stack)?;
+        writeln!(f, "Registers: {:?}", self.registers)?;
+        writeln!(f, "Stack: {:?}", self.stack)?;
 
         Ok(())
     }

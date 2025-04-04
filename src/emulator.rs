@@ -73,7 +73,7 @@ pub fn run(
                 _ => eprintln!("Unmatched instruction: {:04X}", instruction),
             },
             0x9 => {
-                chip.op_9xy0(vx as usize, vy as usize);
+                chip.op_9xy0(vx, vy);
             }
             0xA => {
                 chip.op_annn(address);
