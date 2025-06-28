@@ -36,12 +36,14 @@ fn main() -> Result<()> {
     }
 
     let key_map = Arc::new(Mutex::new(0u16));
-    let display_buffer = Arc::new(Mutex::new([0u32; 2048]));
-    let display_buffer_clone = Arc::clone(&display_buffer);
-    let key_map_clone = Arc::clone(&key_map);
+    let display_buffer = Arc::new(Mutex::new([0u32; window::WIDTH * window::HEIGHT]));
 
     // emulator is ran in separate thread so it can work independently from the window.
-    thread::spawn(move || emulator::run(args.rom, display_buffer_clone, key_map_clone, args.debug));
+    thread::spawn({ 
+        let display_buffer = Arc::clone(&display_buffer);
+        let key_map = Arc::clone(&key_map);
+        move || emulator::run(args.rom, display_buffer, key_map, args.debug)
+    });
 
     // window has to run on main thread.
     window::run(display_buffer, key_map);
