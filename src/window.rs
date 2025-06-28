@@ -2,9 +2,9 @@ use key_bindings::create_bindings;
 use minifb::{Key, Window, WindowOptions};
 use std::sync::{Arc, Mutex};
 
-pub type DisplayBuffer = [u32; 2048];
 pub const WIDTH: usize = 64;
 pub const HEIGHT: usize = 32;
+pub type DisplayBuffer = [u32; WIDTH * HEIGHT];
 
 // TODO: move it to a config file
 const REFRESH_RATE: usize = 60;
